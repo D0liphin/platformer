@@ -70,8 +70,7 @@ fn sys_camera_controls(
     if mouse_input.pressed(MouseButton::Left) && keyboard_input.pressed(KeyCode::AltLeft) {
         if let Some(pan_by) = absolute_mouse_motion.delta {
             let pan_by = pan_by * orth_proj.scale;
-            //                                      ^^^ I have no idea why this is here
-            camera_transform.translation += Vec3::new(-pan_by.x, -pan_by.y, 0.);
+            camera_transform.translation += Vec3::new(-pan_by.x, pan_by.y, 0.);
         }
     }
 
