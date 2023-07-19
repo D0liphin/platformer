@@ -1,9 +1,12 @@
+mod goto;
 mod parse;
 mod spawn;
 use parse::parse;
 
 use bevy::prelude::*;
 use bevy_egui::egui;
+
+use crate::objects::player::Player;
 
 #[derive(Resource)]
 pub struct CommandLineUiState {
@@ -12,6 +15,7 @@ pub struct CommandLineUiState {
 
 pub fn show_command_line_ui(
     commands: &mut Commands,
+    q_player: &mut Query<&mut Transform, With<Player>>,
     ui: &mut egui::Ui,
     state: &mut CommandLineUiState,
 ) {
@@ -25,6 +29,7 @@ pub fn show_command_line_ui(
         if ui.button("run").clicked() {
             match parse(&state.command) {
                 Some(("spawn", rest)) => spawn::spawn(commands, rest),
+                Some(("goto", rest)) => goto::goto(q_player, rest),
                 Some((command, _)) => println!("command {:?} does not exist", command),
                 None => println!("invalid command format"),
             }

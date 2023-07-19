@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::types::*;
-use bevy::{ecs::system::EntityCommands, prelude::*, utils::HashMap};
+use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier2d::prelude::*;
 
 /// The size of a chunk in pixels (the image used for a chunk should be exactly
@@ -184,9 +184,9 @@ impl LevelHitboxDescriptor {
                 let (top, right, bottom, left) =
                     (*top as f32, *right as f32, *bottom as f32, *left as f32);
                 let half_width = (right - left) / 2.;
-                let half_height = (top - bottom) / 2.;
+                let half_height = (bottom - top) / 2.;
                 let mut center_x = left + half_width;
-                let mut center_y = bottom + half_height;
+                let mut center_y = top + half_height;
                 // coordinates are (0, 0) at bl of image
                 center_y = CHUNK_SIZE_PX as f32 - center_y;
                 // and (0, 0) should be -chunk_size / 2.
@@ -203,7 +203,9 @@ impl LevelHitboxDescriptor {
 
     fn spawn(&self, commands: &mut Commands) -> Entity {
         match self {
-            Self::Aabb { .. } => commands.spawn(self.into_collider_with_transform()).id(),
+            Self::Aabb { .. } => commands
+                .spawn((self.into_collider_with_transform(), RigidBody::Fixed))
+                .id(),
         }
     }
 }

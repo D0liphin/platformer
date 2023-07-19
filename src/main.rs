@@ -4,9 +4,14 @@ mod debug;
 mod level;
 mod physics;
 mod types;
+mod animation;
+mod objects;
+mod bitflags;
 
+use animation::AnimationPlugin;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
+use objects::{player::PlayerPlugin, KinematicObjectPlugin};
 pub use types::*;
 
 use bevy::{prelude::*, utils::HashMap};
@@ -61,6 +66,7 @@ fn main() {
             EguiPlugin,
         ))
         .add_plugins(CameraPlugin)
+        .add_plugins(AnimationPlugin)
         // debug plugins
         .add_plugins((
             CameraControlsPlugin,
@@ -69,7 +75,8 @@ fn main() {
             RapierDebugRenderPlugin::default(),
             WorldInspectorPlugin::new(),
         ))
-        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(8.0))
+        .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(128.0))
+        .add_plugins((KinematicObjectPlugin, PlayerPlugin))
         .add_systems(Startup, sys_spawn_grassland) // TODO: remove
         .run();
 }
