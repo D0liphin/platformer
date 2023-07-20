@@ -1,4 +1,4 @@
-mod controller;
+pub mod controller;
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -18,7 +18,7 @@ struct PlayerDecorationBundle {
 #[derive(Bundle)]
 struct PlayerObjectBundle {
     /// KinematicVelocityBased
-    rigid_body: RigidBody,
+    // rigid_body: RigidBody,
     collider: Collider,
     transform: TransformBundle,
     /// Name::new("Player")
@@ -49,7 +49,7 @@ impl Player {
             .id();
         commands
             .spawn(PlayerObjectBundle {
-                rigid_body: RigidBody::KinematicVelocityBased,
+                // rigid_body: RigidBody::KinematicVelocityBased,
                 collider: Collider::cuboid(3.5, 7.),
                 transform: TransformBundle::from(Transform::from_xyz(49., -4., 0.)),
                 name: Name::new("Player"),

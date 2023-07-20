@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
+pub mod gizmos_ext;
 
 use crate::{
     camera::{show_camera_controls_ui, CameraControlsUiState},

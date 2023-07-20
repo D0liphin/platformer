@@ -16,8 +16,14 @@ impl<'de> serde::Deserialize<'de> for Ball {
         D: serde::Deserializer<'de>,
     {
         #[derive(serde::Deserialize)]
+        struct V2 {
+            x: f32,
+            y: f32,
+        }
+
+        #[derive(serde::Deserialize)]
         struct S {
-            position: Vec2,
+            position: V2,
             radius: f32,
         }
 
