@@ -15,7 +15,7 @@ use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
 use objects::{player::PlayerPlugin, KinematicObjectPlugin};
 pub use types::*;
 
-use bevy::{prelude::*, utils::HashMap, gizmos::GizmoPlugin};
+use bevy::{prelude::*, utils::HashMap};
 use bevy_egui::EguiPlugin;
 use camera::{CameraControlsPlugin, CameraPlugin};
 use command_line::CommandLinePlugin;

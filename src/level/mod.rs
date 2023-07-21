@@ -86,8 +86,7 @@ impl LevelDescriptor {
                     ..default()
                 },
             };
-            let mut ec = commands.spawn(bundle);
-            Some(ec.id())
+            Some(commands.spawn(bundle).id())
         } else {
             None
         }

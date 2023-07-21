@@ -3,7 +3,7 @@ pub mod controller;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::{animation::*, animations, bitflags::BitFlags};
+use crate::{animation::*, animations};
 
 use self::controller::sys_player_controller;
 
