@@ -20,6 +20,11 @@ pub struct Animation {
 }
 
 impl Animation {
+    pub fn with_key(mut self, key: AnimationKey) -> Self {
+        self.key = key;
+        self
+    }
+
     pub fn with_frames<I: IntoIterator<Item = AnimationKey>>(mut self, frames: I) -> Animation {
         self.frames = frames.into_iter().collect();
         self
@@ -136,6 +141,14 @@ impl AnimationState {
         (self.flags & 0b0010_0000) > 0
     }
 
+    /// `AnimationFlow::Static` and `AnimationFlow::Looping` cannot actually 'finish', so we return
+    /// `true` for these flows as well
+    pub fn finished_or_unfinishable(&self, animation_flow: &AnimationFlow) -> bool {
+        self.finished()
+            || *animation_flow == AnimationFlow::Looping
+            || *animation_flow == AnimationFlow::Static
+    }
+
     fn set_finished(&mut self, val: bool) {
         self.flags = (self.flags & 0b1101_1111) | ((val as u8) << 5);
     }
@@ -171,6 +184,13 @@ impl Animations {
     pub fn bind(&self, animation: &mut Animation, key: &AnimationKey) {
         if let Some(new_animation) = self.get(key) {
             *animation = new_animation.clone();
+        }
+    }
+
+    /// perform a `bind` if the `key` is different from the current animation
+    pub fn bind_if_different<'a>(&self, mut animation: Mut<'a, Animation>, key: &AnimationKey) {
+        if animation.key != *key {
+            self.bind(&mut animation, key);
         }
     }
 }

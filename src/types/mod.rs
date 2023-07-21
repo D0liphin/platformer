@@ -16,5 +16,10 @@ pub mod animations {
         NULL = 0;
         PLAYER_IDLE = 1;
         PLAYER_RUN = 2;
+        PLAYER_JUMP = 3;
+        PLAYER_FLOAT = 4;
+        PLAYER_FALL = 5;
+        PLAYER_LAND = 6;
+        PLAYER_CROUCH = 7;
     }
 }

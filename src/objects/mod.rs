@@ -1,29 +1,37 @@
 pub mod player;
-use std::{f32::consts::FRAC_PI_2, fmt};
+use std::{f32::consts::{FRAC_PI_2, FRAC_PI_4}, fmt};
 
-use crate::debug::gizmos_ext::GizmosExt;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
+use crate::debug::gizmos_ext::GizmosExt;
+
 #[derive(Component)]
 pub struct KinematicObject {
-    /// [0]: touching the ground
-    #[allow(unused)]
-    flags: u64,
+    /// The normals of the objects that we're touching. This can be as long as
+    /// `Kinematic::MAX_CORRECTION_ITERS` in theory, but typically won't be any longer than 2
+    touching: Vec<Vec2>,
 }
 
 impl KinematicObject {
     fn new() -> Self {
-        Self { flags: 0 }
+        Self {
+            touching: Vec::with_capacity(Self::MAX_CORRECTION_ITERS),
+        }
     }
 
-    pub const PADDING_WIDTH: f32 = 1.;
+    pub fn touching_floor(&self) -> bool {
+        for normal in &self.touching {
+            let angle = Vec2::Y.angle_between(*normal);
+            if angle > -FRAC_PI_4 && angle < FRAC_PI_4 {
+                return true;
+            }
+        }
+        false
+    }
 
-    // pub const TOUCHING_GROUND: u64 = 0b1;
-
-    // pub fn is_touching_ground(&self) -> bool {
-    //     self.flags.is_high(Self::TOUCHING_GROUND)
-    // }
+    pub const PADDING_WIDTH: f32 = 0.005;
+    pub const MAX_CORRECTION_ITERS: usize = 8;
 }
 
 #[derive(Clone, Copy)]
@@ -144,11 +152,18 @@ fn get_collision_correction(args: GetCollisionCorrectionArgs) -> Option<Collisio
                 new_linvel,
             });
         } else {
-            println!("\n\n\nPENETRATING\n\n\n");
             // TOIStatus::Penetrating
         }
     }
     None
+}
+
+struct MultipassCollisionCorrection {
+    /// Where we ended up
+    pos: Vec2,
+    /// The normals of the objects we hit if this is equal to `max_correction_iters`, the object is
+    /// stopped
+    normals: Vec<Vec2>,
 }
 
 /// Iterate multiple `get_collision_correction` passes, applying residual velocity each time. Does
@@ -157,36 +172,49 @@ fn get_collision_correction(args: GetCollisionCorrectionArgs) -> Option<Collisio
 ///
 /// Returns `None` if there is no collision
 fn get_collision_correction_multipass(
+    gizmos: &mut Gizmos,
     mut args: GetCollisionCorrectionArgs,
     max_correction_iters: usize,
-) -> Option<Vec2> {
+) -> Option<MultipassCollisionCorrection> {
     let mut final_pos: Option<Vec2> = None;
-
+    let mut normals = vec![];
     for i in 1..=max_correction_iters {
         let is_final_pass = i == max_correction_iters;
 
         let correction = get_collision_correction(args);
-        if let Some(mut correction) = correction {
+        if let Some(correction) = correction {
+            normals.push(correction.hit.normal1);
             if is_final_pass {
-                correction.new_linvel = Vec2::ZERO;
                 final_pos = Some(correction.hit_pos_with_padding);
             } else {
                 final_pos = Some(correction.hit_pos_with_padding);
                 args.shape_pos = correction.hit_pos_with_padding;
                 args.shape_linvel = correction.new_linvel;
                 args.max_toi -= correction.hit.toi;
+                // gizmos.arrow_2d(
+                //     correction.hit_pos_with_padding,
+                //     correction.hit_pos_with_padding + args.shape_linvel * args.max_toi,
+                //     4.,
+                //     Color::ORANGE,
+                // )
             }
         } else {
             // No collisions! We're all good :)
             // but we still need to update the final_pos with any lingering velocity
-            if let Some(mut pos) = final_pos {
-                pos += args.shape_linvel * args.max_toi;
+            if let Some(ref mut pos) = final_pos {
+                *pos += args.shape_linvel * args.max_toi;
+                // gizmos.rect_2d(
+                //     *pos,
+                //     args.shape_rot,
+                //     args.shape.as_cuboid().unwrap().half_extents() * 2.,
+                //     Color::RED,
+                // );
             }
             break;
         }
     }
 
-    final_pos
+    final_pos.map(|pos| MultipassCollisionCorrection { pos, normals })
 }
 
 /// KinematicVelocityBased objects *want* to move through walls, but we can't let them! This system
@@ -204,7 +232,7 @@ fn sys_adjust_objects(
         &Collider,
     )>,
 ) {
-    for (self_id, mut _k_object, mut trf, global_trf, mut shape_vel, shape) in
+    for (self_id, mut k_object, mut trf, global_trf, mut shape_vel, shape) in
         q_kinematic_objects.iter_mut()
     {
         if shape_vel.linvel.length() < 0.01 {
@@ -218,24 +246,35 @@ fn sys_adjust_objects(
             .to_euler(EulerRot::XYZ)
             .2; // this is the z-coordinate of the euler-rot which is all that matters for 2D
                 // velocity of the KinematicObject
-        gizmos.arrow_2d(shape_pos, shape_pos + shape_linvel, 4., Color::BLUE);
+        // gizmos.arrow_2d(shape_pos, shape_pos + shape_linvel, 4., Color::BLUE);
 
-        if let Some(pos) = get_collision_correction_multipass(
-            GetCollisionCorrectionArgs {
-                rapier_ctx: &rapier_ctx,
-                shape_pos,
-                shape_rot,
-                shape_linvel,
-                shape,
-                max_toi: time.delta_seconds(),
-                self_id,
-                padding: KinematicObject::PADDING_WIDTH,
-            },
-            5,
-        ) {
+        if let Some(MultipassCollisionCorrection { pos, normals }) =
+            get_collision_correction_multipass(
+                &mut gizmos,
+                GetCollisionCorrectionArgs {
+                    rapier_ctx: &rapier_ctx,
+                    shape_pos,
+                    shape_rot,
+                    shape_linvel,
+                    shape,
+                    max_toi: time.delta_seconds(),
+                    self_id,
+                    padding: KinematicObject::PADDING_WIDTH,
+                },
+                KinematicObject::MAX_CORRECTION_ITERS,
+            )
+        {
+            k_object.touching = normals;
+            // gizmos.rect_2d(
+            //     pos,
+            //     shape_rot,
+            //     shape.as_cuboid().unwrap().half_extents() * 2.,
+            //     Color::RED,
+            // );
             trf.translation.x = pos.x;
             trf.translation.y = pos.y;
         } else {
+            k_object.touching = Vec::with_capacity(KinematicObject::MAX_CORRECTION_ITERS);
             let delta = shape_vel.linvel * time.delta_seconds();
             trf.translation.x += delta.x;
             trf.translation.y += delta.y;

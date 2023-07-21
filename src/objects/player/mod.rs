@@ -1,13 +1,15 @@
+pub mod animation;
 pub mod controller;
+
+use self::{
+    animation::{sys_player_animation, sys_setup_player_animations},
+    controller::sys_player_controller,
+};
+use super::KinematicObject;
+use crate::{animation::*, animations};
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
-
-use crate::{animation::*, animations};
-
-use self::controller::sys_player_controller;
-
-use super::KinematicObject;
 
 /// The child of PlayerObjectBundle
 #[derive(Bundle)]
@@ -51,7 +53,7 @@ impl Player {
             .spawn(PlayerObjectBundle {
                 // rigid_body: RigidBody::KinematicVelocityBased,
                 collider: Collider::cuboid(3.5, 7.),
-                transform: TransformBundle::from(Transform::from_xyz(49., -4., 0.)),
+                transform: TransformBundle::from(Transform::from_xyz(49., -8.99, 0.)),
                 name: Name::new("Player"),
                 visibility: VisibilityBundle::default(),
                 velocity: Velocity::zero(),
@@ -64,48 +66,20 @@ impl Player {
 
 pub struct PlayerPlugin;
 
-fn sys_setup_player(
-    mut commands: Commands,
-    mut animations: ResMut<Animations>,
-    asset_server: Res<AssetServer>,
-    mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-) {
-    // animations
-    let mut builder = AnimationBuilder::new(&asset_server, &mut texture_atlases);
-    animations.add(
-        builder
-            .from_grid(
-                animations::PLAYER_IDLE,
-                "objects/player/player_idle_16x16_5_1_0x0_1x0.png",
-                Vec2::new(16., 16.),
-                5,
-                1,
-                Some(Vec2::new(1., 0.)),
-                None,
-            )
-            .with_flow(AnimationFlow::Looping)
-            .with_frame_duration(0.2)
-            .with_frames([0, 1, 2, 3, 4]),
-    );
-
-    // spawn player
+fn sys_spawn_player(mut commands: Commands, animations: ResMut<Animations>) {
     Player::spawn(&mut commands, &animations);
 }
 
-fn sys_player_animation() {}
-
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, sys_setup_player)
-            .add_systems(Update, sys_player_animation)
-            .add_systems(Update, sys_player_controller)
-            .add_systems(
-                PostUpdate,
-                |mut evr_collisions: EventReader<CollisionEvent>| {
-                    for ev in evr_collisions.iter() {
-                        dbg!(ev);
-                    }
-                },
-            );
+        app.add_systems(
+            Startup,
+            (
+                sys_setup_player_animations.before(sys_spawn_player),
+                sys_spawn_player,
+            ),
+        )
+        .add_systems(Update, sys_player_controller)
+        .add_systems(Update, sys_player_animation.after(sys_player_controller));
     }
 }
