@@ -5,7 +5,7 @@ use self::{
     animation::{sys_player_animation, sys_setup_player_animations},
     controller::sys_player_controller,
 };
-use super::KinematicObject;
+use super::{KinematicObject, KinematicVelocity};
 use crate::{animation::*, animations};
 
 use bevy::prelude::*;
@@ -26,7 +26,7 @@ struct PlayerObjectBundle {
     /// Name::new("Player")
     name: Name,
     visibility: VisibilityBundle,
-    velocity: Velocity,
+    velocity: KinematicVelocity,
     object: KinematicObject,
     player: Player,
 }
@@ -56,7 +56,7 @@ impl Player {
                 transform: TransformBundle::from(Transform::from_xyz(49., -8.99, 0.)),
                 name: Name::new("Player"),
                 visibility: VisibilityBundle::default(),
-                velocity: Velocity::zero(),
+                velocity: KinematicVelocity::zero(),
                 object: KinematicObject::new(),
                 player: Player,
             })

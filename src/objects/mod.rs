@@ -1,5 +1,10 @@
 pub mod player;
-use std::{f32::consts::{FRAC_PI_2, FRAC_PI_4}, fmt};
+mod velocity;
+use std::{
+    f32::consts::{FRAC_PI_2, FRAC_PI_4},
+    fmt,
+};
+pub use velocity::*;
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
@@ -172,7 +177,6 @@ struct MultipassCollisionCorrection {
 ///
 /// Returns `None` if there is no collision
 fn get_collision_correction_multipass(
-    gizmos: &mut Gizmos,
     mut args: GetCollisionCorrectionArgs,
     max_correction_iters: usize,
 ) -> Option<MultipassCollisionCorrection> {
@@ -191,24 +195,12 @@ fn get_collision_correction_multipass(
                 args.shape_pos = correction.hit_pos_with_padding;
                 args.shape_linvel = correction.new_linvel;
                 args.max_toi -= correction.hit.toi;
-                // gizmos.arrow_2d(
-                //     correction.hit_pos_with_padding,
-                //     correction.hit_pos_with_padding + args.shape_linvel * args.max_toi,
-                //     4.,
-                //     Color::ORANGE,
-                // )
             }
         } else {
             // No collisions! We're all good :)
             // but we still need to update the final_pos with any lingering velocity
             if let Some(ref mut pos) = final_pos {
                 *pos += args.shape_linvel * args.max_toi;
-                // gizmos.rect_2d(
-                //     *pos,
-                //     args.shape_rot,
-                //     args.shape.as_cuboid().unwrap().half_extents() * 2.,
-                //     Color::RED,
-                // );
             }
             break;
         }
@@ -220,7 +212,6 @@ fn get_collision_correction_multipass(
 /// KinematicVelocityBased objects *want* to move through walls, but we can't let them! This system
 /// updates their positions.
 fn sys_adjust_objects(
-    mut gizmos: Gizmos,
     rapier_ctx: Res<RapierContext>,
     time: Res<Time>,
     mut q_kinematic_objects: Query<(
@@ -228,7 +219,7 @@ fn sys_adjust_objects(
         &mut KinematicObject,
         &mut Transform,
         &GlobalTransform,
-        &mut Velocity,
+        &mut KinematicVelocity,
         &Collider,
     )>,
 ) {
@@ -236,21 +227,22 @@ fn sys_adjust_objects(
         q_kinematic_objects.iter_mut()
     {
         if shape_vel.linvel.length() < 0.01 {
-            shape_vel.linvel = Vec2::ZERO;
+            shape_vel.halt_linvel();
             continue;
         }
 
         let shape_pos = Vec2::new(global_trf.translation().x, global_trf.translation().y);
-        let shape_linvel = shape_vel.linvel;
         let shape_rot = Quat::from_affine3(&global_trf.affine())
             .to_euler(EulerRot::XYZ)
             .2; // this is the z-coordinate of the euler-rot which is all that matters for 2D
                 // velocity of the KinematicObject
-        // gizmos.arrow_2d(shape_pos, shape_pos + shape_linvel, 4., Color::BLUE);
+                // gizmos.arrow_2d(shape_pos, shape_pos + shape_linvel, 4., Color::BLUE);
+
+        // we do this because it's a better approximation of how much the shape will actually move
+        let shape_linvel = shape_vel.effective_linvel(1.);
 
         if let Some(MultipassCollisionCorrection { pos, normals }) =
             get_collision_correction_multipass(
-                &mut gizmos,
                 GetCollisionCorrectionArgs {
                     rapier_ctx: &rapier_ctx,
                     shape_pos,
@@ -265,20 +257,15 @@ fn sys_adjust_objects(
             )
         {
             k_object.touching = normals;
-            // gizmos.rect_2d(
-            //     pos,
-            //     shape_rot,
-            //     shape.as_cuboid().unwrap().half_extents() * 2.,
-            //     Color::RED,
-            // );
             trf.translation.x = pos.x;
             trf.translation.y = pos.y;
         } else {
             k_object.touching = Vec::with_capacity(KinematicObject::MAX_CORRECTION_ITERS);
-            let delta = shape_vel.linvel * time.delta_seconds();
+            let delta = shape_vel.effective_linvel(time.delta_seconds());
             trf.translation.x += delta.x;
             trf.translation.y += delta.y;
         }
+        shape_vel.update_prev_linvel();
     }
 }
 
@@ -287,6 +274,7 @@ pub struct KinematicObjectPlugin;
 
 impl Plugin for KinematicObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(PostUpdate, sys_adjust_objects);
+        app.add_systems(PostUpdate, sys_adjust_objects)
+            .register_type::<KinematicVelocity>();
     }
 }

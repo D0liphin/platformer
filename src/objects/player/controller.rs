@@ -1,15 +1,29 @@
 use super::Player;
-use crate::{objects::KinematicObject, util::get_real_cursor_position};
+use crate::{
+    objects::{KinematicObject, KinematicVelocity},
+    util::get_real_cursor_position,
+};
 use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_rapier2d::prelude::*;
+
+fn effective_meters(value: f32, dt: f32) -> f32 {
+    value * 10. * dt
+}
 
 /// Controls the player!
 pub(crate) fn sys_player_controller(
     key_in: Res<Input<KeyCode>>,
-    _time: Res<Time>,
+    time: Res<Time>,
     q_window: Query<&Window, With<PrimaryWindow>>,
     q_camera: Query<(&OrthographicProjection, &GlobalTransform), With<Camera2d>>,
-    mut q_players: Query<(&mut KinematicObject, &mut Velocity, &GlobalTransform), With<Player>>,
+    mut q_players: Query<
+        (
+            &mut KinematicObject,
+            &mut KinematicVelocity,
+            &GlobalTransform,
+        ),
+        With<Player>,
+    >,
 ) {
     let window = q_window.single();
     let (camera_orth_proj, camera_trf) = q_camera.single();
@@ -23,30 +37,33 @@ pub(crate) fn sys_player_controller(
         );
         if pressed_left ^ pressed_right {
             if pressed_right {
-                vel.linvel.x += 20.;
+                vel.linvel.x += effective_meters(100., time.delta_seconds());
                 if vel.linvel.x > 100. {
                     vel.linvel.x = 100.;
                 }
             }
             if pressed_left {
-                vel.linvel.x -= 20.;
+                vel.linvel.x -= effective_meters(100., time.delta_seconds());
                 if vel.linvel.x < -100. {
                     vel.linvel.x = -100.;
                 }
             }
         } else {
-            let air_res = if k_object.touching_floor() { 20. } else { 10. };
-            if vel.linvel.x > air_res {
-                vel.linvel.x -= air_res;
-            } else if vel.linvel.x < -air_res {
-                vel.linvel.x += air_res;
+            let res = effective_meters(
+                if k_object.touching_floor() { 100. } else { 20. },
+                time.delta_seconds(),
+            );
+            if vel.linvel.x > res {
+                vel.hard_add_assign_x(-res);
+            } else if vel.linvel.x < -res {
+                vel.hard_add_assign_x(res);
             } else {
-                vel.linvel.x = 0.
+                vel.hard_assign_x(0.);
             }
         }
         if k_object.touching_floor() {
             if key_in.just_pressed(KeyCode::Up) {
-                vel.linvel.y = 200.;
+                vel.hard_assign_y(200.);
             } else {
                 vel.linvel.y = -10.;
             }

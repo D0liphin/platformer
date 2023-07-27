@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
 use super::Player;
-use crate::{animation::*, animations, objects::KinematicObject};
+use crate::{animation::*, animations, objects::{KinematicObject, KinematicVelocity}};
 
 /// Adds jump, land, crouch (for now), fall and float animations for the player
 fn setup_jump_animations(animations: &mut Animations, builder: &mut AnimationBuilder) {
@@ -98,7 +98,7 @@ pub(crate) fn sys_setup_player_animations(
 pub(crate) fn sys_player_animation(
     key_in: Res<Input<KeyCode>>,
     animations: Res<Animations>,
-    q_player: Query<(&Children, &Velocity, &KinematicObject), With<Player>>,
+    q_player: Query<(&Children, &KinematicVelocity, &KinematicObject), With<Player>>,
     mut q_player_decoration: Query<(&mut Animation, &AnimationState, &mut Transform)>,
 ) {
     let (children, vel, k_object) = q_player.single();
