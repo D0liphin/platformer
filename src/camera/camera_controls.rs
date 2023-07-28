@@ -13,9 +13,9 @@ impl Plugin for CameraControlsPlugin {
             follow_player: false,
         })
         .insert_resource(AbsoluteMouseMotion::default())
-        .add_systems(PostUpdate, sys_camera_controls)
+        .add_systems(Last, sys_camera_controls)
         .add_systems(
-            PostUpdate,
+            Last,
             sys_update_absolute_mouse_motion.after(sys_camera_controls),
         );
     }
@@ -82,8 +82,8 @@ fn sys_camera_controls(
         let (cx, cy) = (camera_trf.translation.x, camera_trf.translation.y);
         let (px, py) = (player_trf.translation().x, player_trf.translation().y);
 
-        camera_trf.translation.x = ((px - cx) * 0.9) + cx;
-        camera_trf.translation.y = ((py - cy) * 0.9) + cy;
+        camera_trf.translation.x = ((px - cx) * 0.5) + cx;
+        camera_trf.translation.y = ((py - cy) * 0.5) + cy;
     } else {
         if mouse_input.pressed(MouseButton::Left) && keyboard_input.pressed(KeyCode::AltLeft) {
             if let Some(pan_by) = absolute_mouse_motion.delta {

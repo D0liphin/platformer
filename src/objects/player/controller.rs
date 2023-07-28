@@ -1,3 +1,5 @@
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4, PI};
+
 use super::Player;
 use crate::{
     objects::{KinematicObject, KinematicVelocity},
@@ -29,7 +31,7 @@ pub(crate) fn sys_player_controller(
     let (camera_orth_proj, camera_trf) = q_camera.single();
 
     for (k_object, mut vel, trf) in q_players.iter_mut() {
-        vel.linvel.y -= 10.;
+        vel.linvel.y -= effective_meters(50., time.delta_seconds());
 
         let (pressed_left, pressed_right) = (
             key_in.pressed(KeyCode::Left),
@@ -37,20 +39,20 @@ pub(crate) fn sys_player_controller(
         );
         if pressed_left ^ pressed_right {
             if pressed_right {
-                vel.linvel.x += effective_meters(100., time.delta_seconds());
-                if vel.linvel.x > 100. {
-                    vel.linvel.x = 100.;
+                vel.linvel.x += effective_meters(200., time.delta_seconds());
+                if vel.linvel.x > 50. {
+                    vel.linvel.x = 50.;
                 }
             }
             if pressed_left {
-                vel.linvel.x -= effective_meters(100., time.delta_seconds());
-                if vel.linvel.x < -100. {
-                    vel.linvel.x = -100.;
+                vel.linvel.x -= effective_meters(200., time.delta_seconds());
+                if vel.linvel.x < -50. {
+                    vel.linvel.x = -50.;
                 }
             }
         } else {
             let res = effective_meters(
-                if k_object.touching_floor() { 100. } else { 20. },
+                if k_object.touching_floor() { 200. } else { 50. },
                 time.delta_seconds(),
             );
             if vel.linvel.x > res {
@@ -63,7 +65,7 @@ pub(crate) fn sys_player_controller(
         }
         if k_object.touching_floor() {
             if key_in.just_pressed(KeyCode::Up) {
-                vel.hard_assign_y(200.);
+                vel.hard_assign_y(120.);
             } else {
                 vel.linvel.y = -10.;
             }
