@@ -7,6 +7,7 @@ use crate::bytes_util::*;
 use bevy::{asset::FileAssetIo, prelude::*};
 use std::mem::size_of;
 
+#[derive(Component)]
 pub struct Level {
     /// BTreeMap<ChunkLocation, ChunkDescriptor>
     db: sled::Db,
@@ -100,5 +101,45 @@ impl FromBytes for ChunkDescriptor {
         Self {
             bg: ChunkDecoration::from_bytes(window),
         }
+    }
+}
+
+#[derive(Component)]
+pub struct Pov {
+    /// The position of the viewer of this level
+    pub position: Option<Vec2>,
+    /// The dimensions of the region that *must* be viewable at all times 
+    /// (half_width, half_height)`. Note that a render region of (0, 0) is 1x1 chunks, (2, 2) is 
+    /// 5x5 and so on.
+    pub render_region: (u32, u32),
+    /// How 'relaxed' we're allowed to be when unloading the `render_region`. If this is 0, chunks
+    /// will be loaded immediately when they are outside the render region. If this is greater
+    /// than 0, chunks have to be 
+    pub forget_border_width: u32,
+}
+
+#[derive(Bundle)]
+pub struct LevelBundle {
+    /// How to load in the chunks of the level dynamically
+    pov: Pov,
+    /// The actual level
+    level: Level,
+}
+
+fn sys_load_chunks(mut commmands: Commands, mut q_levels: Query<(&mut Level, &Pov)>) {
+    for (mut level, _) in q_levels.iter_mut() {
+        for x in -5..=5 {
+            for y in -5..=5 {
+                level.get(&ChunkLocation::new(x, y));
+            }
+        }
+    }
+}X13
+24 X44 22 
+pub struct LevelPlugin;
+
+impl Plugin for LevelPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, sys_load_chunks);
     }
 }

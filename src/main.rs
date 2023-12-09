@@ -53,6 +53,7 @@ fn sys_spawn_grassland(
         },
     );
     dbg!(level.get(&ChunkLocation::new(0, 0)));
+    commands.spawn((level,));
     *clear_color = ClearColor(Color::rgba(0.9, 0.95, 1., 1.));
     // let level_descriptor = LevelDescriptor {
     //     ident: "grassland",
